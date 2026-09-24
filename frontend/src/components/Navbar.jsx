@@ -1,8 +1,16 @@
 import React from 'react';
 import { ShieldCheck, Cpu, Clock, PlusCircle, LayoutDashboard, Sparkles, Activity } from 'lucide-react';
 
-export default function Navbar({ activeTab, setActiveTab, healthInfo }) {
+export default function Navbar({ activeTab, setActiveTab, onOpenNewSubmission, healthInfo }) {
   const isAiActive = healthInfo?.openai_api_available;
+
+  const handleNewSubmissionClick = () => {
+    if (onOpenNewSubmission) {
+      onOpenNewSubmission();
+    } else {
+      setActiveTab('submit');
+    }
+  };
 
   return (
     <header className="glass-card" style={{ borderRadius: 0, borderTop: 0, borderLeft: 0, borderRight: 0, position: 'sticky', top: 0, zIndex: 100 }}>
@@ -35,7 +43,7 @@ export default function Navbar({ activeTab, setActiveTab, healthInfo }) {
           </button>
 
           <button
-            onClick={() => setActiveTab('submit')}
+            onClick={handleNewSubmissionClick}
             className={`btn ${activeTab === 'submit' ? 'btn-primary' : 'btn-secondary'}`}
             style={{ padding: '8px 16px', fontSize: '0.85rem' }}
           >

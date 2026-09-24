@@ -20,7 +20,7 @@ export default function App() {
 
   // Live run state
   const [currentRunData, setCurrentRunData] = useState(null);
-  const [initialPreset, setInitialPreset] = useState('happy_path');
+  const [initialPreset, setInitialPreset] = useState(null);
 
   // Modal detail view state
   const [selectedRunIdModal, setSelectedRunIdModal] = useState(null);
@@ -48,6 +48,11 @@ export default function App() {
     }
   };
 
+  const handleOpenNewSubmission = () => {
+    setInitialPreset(null);
+    setActiveTab('submit');
+  };
+
   const handleSelectScenario = (presetKey) => {
     setInitialPreset(presetKey);
     setActiveTab('submit');
@@ -56,6 +61,7 @@ export default function App() {
   const handleSubmitVendor = async (formDataPayload) => {
     const result = await onboardVendor(formDataPayload);
     setCurrentRunData(result);
+    setInitialPreset(null);
     setActiveTab('live');
     // Refresh run list in background
     loadRuns();
@@ -79,6 +85,7 @@ export default function App() {
       <Navbar 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
+        onOpenNewSubmission={handleOpenNewSubmission}
         healthInfo={healthInfo} 
       />
 
@@ -106,7 +113,7 @@ export default function App() {
         {activeTab === 'live' && (
           <LiveRunView
             runData={currentRunData}
-            onReset={() => setActiveTab('submit')}
+            onReset={handleOpenNewSubmission}
           />
         )}
 

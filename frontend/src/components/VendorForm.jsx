@@ -4,35 +4,53 @@ import {
   MapPin, Upload, Sparkles, CheckCircle2, AlertCircle, Play, FileText 
 } from 'lucide-react';
 
-export default function VendorForm({ onSubmitSubmission, initialPreset }) {
-  const [formData, setFormData] = useState({
-    company_name: 'ABC Technologies Private Limited',
-    vendor_email: 'contact@abctech.com',
-    contact_person: 'Rahul Sharma',
-    country: 'India',
-    tax_id: '27AAAAA0000A1Z5',
-    bank_account_name: 'ABC Technologies Private Limited',
-    bank_account_number: '918273645019',
-    bank_name: 'HDFC Bank',
-    business_address: '123 BKC Financial Center, Mumbai, India',
-    has_tax_registration: true,
-    has_compliance_doc: true,
-    has_company_registration: true
-  });
+const emptyFormState = {
+  company_name: '',
+  vendor_email: '',
+  contact_person: '',
+  country: '',
+  tax_id: '',
+  bank_account_name: '',
+  bank_account_number: '',
+  bank_name: '',
+  business_address: '',
+  has_tax_registration: false,
+  has_compliance_doc: false,
+  has_company_registration: false
+};
 
-  const [files, setFiles] = useState({
-    tax_registration_file: null,
-    compliance_doc_file: null,
-    company_registration_file: null
-  });
+const emptyFilesState = {
+  tax_registration_file: null,
+  compliance_doc_file: null,
+  company_registration_file: null
+};
+
+export default function VendorForm({ onSubmitSubmission, initialPreset }) {
+  const [formData, setFormData] = useState(emptyFormState);
+
+  const [files, setFiles] = useState(emptyFilesState);
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Synchronize form state with initialPreset prop
+  React.useEffect(() => {
+    if (initialPreset) {
+      loadPreset(initialPreset);
+    } else {
+      setFormData(emptyFormState);
+      setFiles(emptyFilesState);
+    }
+  }, [initialPreset]);
+
   // Handle Preset quick-fills
   const loadPreset = (presetKey) => {
     setErrorMessage('');
-    if (presetKey === 'happy_path') {
+    setFiles(emptyFilesState);
+
+    if (presetKey === 'blank' || !presetKey) {
+      setFormData(emptyFormState);
+    } else if (presetKey === 'happy_path') {
       setFormData({
         company_name: 'ABC Technologies Private Limited',
         vendor_email: 'contact@abctech.com',
@@ -192,6 +210,9 @@ export default function VendorForm({ onSubmitSubmission, initialPreset }) {
             </button>
             <button type="button" className="btn btn-scenario" onClick={() => loadPreset('doc_mismatch')}>
               ⚠️ TEST 5: Doc Content Mismatch (Pending)
+            </button>
+            <button type="button" className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => loadPreset('blank')}>
+              🧹 Clear Form (Blank)
             </button>
           </div>
         </div>
