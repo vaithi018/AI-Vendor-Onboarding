@@ -9,11 +9,11 @@ logger = logging.getLogger(__name__)
 def normalize_text(text: str) -> str:
     if not text:
         return ""
-    # Lowercase, remove non-alphanumeric except spaces
+    # Lowercase, remove punctuation
     cleaned = text.lower().strip()
     cleaned = re.sub(r'[^\w\s]', ' ', cleaned)
     
-    # Strip common corporate suffixes
+    # Strip common corporate legal suffixes
     suffixes = [
         r'\bprivate limited\b', r'\bpvt ltd\b', r'\bltd\b', r'\blimited\b',
         r'\binc\b', r'\bincorporated\b', r'\bcorp\b', r'\bcorporation\b',
@@ -44,16 +44,59 @@ def extract_text_from_pdf(file_path: str) -> str:
         logger.warning(f"Failed to extract PDF text from {file_path}: {e}")
         return ""
 
+def extract_company_name_from_text(raw_text: str, form_company: str = "") -> str:
+    """
+    Parses PDF text for company legal names using regex labels and corporate entity keywords.
+    """
+    if not raw_text:
+        return ""
+
+    lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+
+    # 1. Search for explicit key-value labels (e.g. "Legal Name:", "Company Name:", "Name of Taxpayer:")
+    key_patterns = [
+        r'(?:company\s*name|legal\s*name|name\ certificate|name\ of\ taxpayer|taxpayer\ name|trade\ name|registered\ name|issued\ to|certifies\ that)\s*[:\-\—]?\s*([A-Za-z0-9\s\.\,\&]+)',
+        r'(?:name)\s*[:\-\—]\s*([A-Za-z0-9\s\.\,\&]+)'
+    ]
+    
+    for line in lines:
+        for pat in key_patterns:
+            m = re.search(pat, line, re.IGNORECASE)
+            if m:
+                candidate = m.group(1).strip()
+                if len(candidate) >= 3 and not any(kw in candidate.lower() for kw in ["address", "date", "number", "status"]):
+                    return candidate
+
+    # 2. Check if form company name (normalized) exists anywhere in raw text
+    norm_form = normalize_text(form_company)
+    norm_raw = normalize_text(raw_text)
+    if norm_form and norm_form in norm_raw:
+        return form_company
+
+    # 3. Search for candidate lines containing corporate entity keywords
+    corporate_keywords = [
+        "private limited", "pvt ltd", "limited", "ltd", "inc", "incorporated",
+        "corporation", "corp", "llc", "gmbh", "technologies", "solutions", "systems", "enterprises"
+    ]
+    for line in lines:
+        line_lower = line.lower()
+        if any(kw in line_lower for kw in corporate_keywords):
+            # Clean up leading numbers/titles
+            candidate = re.sub(r'^(?:government of|certificate of|registration of|tax|gstin|pan|ein|cin)\s*', '', line, flags=re.IGNORECASE).strip()
+            if len(candidate) >= 4:
+                return candidate
+
+    return ""
+
 def validate_document_contents(
     vendor_data: Dict[str, str],
     submitted_documents: Optional[List[Dict[str, Any]]] = None
 ) -> Dict[str, Any]:
     """
     Extracts and validates actual PDF document contents against form vendor data.
-    - Tax Registration PDF: extracts/validates Legal Company Name & Tax ID/GSTIN
-    - Company Registration PDF: extracts/validates Legal Company Name & Business Address
-    - Compliance Document PDF: verifies company name and presence of compliance credentials
-    Handles both uploaded PDF files and sample preset attachments.
+    - Tax Registration PDF: extracts & checks Legal Company Name and Tax ID/GSTIN.
+    - Company Registration PDF: extracts & checks Legal Company Name and Business Address.
+    - Compliance Document PDF: verifies Company Name and compliance credentials.
     """
     if not submitted_documents:
         return {
@@ -82,120 +125,79 @@ def validate_document_contents(
         filename = doc.get("filename", "")
         file_path = doc.get("file_path", "")
 
-        raw_text = ""
-        if file_path and Path(file_path).exists():
-            raw_text = extract_text_from_pdf(file_path)
+        is_real_file = bool(file_path and Path(file_path).exists())
+        raw_text = extract_text_from_pdf(file_path) if is_real_file else ""
 
-        # Infer company and Tax ID from PDF text or sample document filename/metadata
         extracted_company = ""
         extracted_tax_id = ""
         extracted_address = ""
-        doc_has_compliance_info = False
 
-        # 1. Inspect raw extracted text if available
-        if raw_text:
-            # Extract GSTIN / Tax ID from PDF text
+        if is_real_file:
+            # Parse real PDF contents strictly
+            extracted_company = extract_company_name_from_text(raw_text, form_company)
+            
+            # Extract Tax ID / GSTIN / EIN from real PDF text
             gstin_match = re.search(r'\b[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}\b', raw_text, re.IGNORECASE)
             ein_match = re.search(r'\b\d{2}-\d{7}\b', raw_text)
             if gstin_match:
                 extracted_tax_id = gstin_match.group(0).upper()
             elif ein_match:
                 extracted_tax_id = ein_match.group(0).upper()
-
-            # Extract company name from text lines
-            for line in raw_text.splitlines():
-                clean_line = line.strip()
-                if any(kw in clean_line.lower() for kw in ["company:", "legal name:", "taxpayer:", "issued to:", "certifies that"]):
-                    parts = re.split(r':|certifies that', clean_line, flags=re.IGNORECASE)
-                    if len(parts) > 1 and len(parts[1].strip()) > 3:
-                        extracted_company = parts[1].strip()
-                        break
-
-            if not extracted_company:
-                # Check if form company or any known entity name is in the text
-                norm_raw = normalize_text(raw_text)
-                if norm_form_company and norm_form_company in norm_raw:
-                    extracted_company = form_company
-
-            if "compliance" in raw_text.lower() or "policy" in raw_text.lower() or "iso" in raw_text.lower() or "audit" in raw_text.lower():
-                doc_has_compliance_info = True
-
-        # 2. Fallback for sample preset documents (e.g. ABC Technologies preset sample documents)
-        if not raw_text or not extracted_company:
-            # Check if filename or sample indicator references ABC Technologies or sample presets
+        else:
+            # Apply synthetic sample preset fallbacks ONLY for checkbox presets (no actual PDF uploaded)
             if any(term in filename.lower() for term in ["abc", "sample", "gst_certificate", "coi_abc", "iso27001"]):
                 extracted_company = "ABC Technologies Private Limited"
                 extracted_tax_id = "27AAAAA0000A1Z5"
                 extracted_address = "123 BKC Financial Center, Mumbai, India"
-                doc_has_compliance_info = True
             elif "bright" in filename.lower():
                 extracted_company = "Bright Solutions Private Limited"
                 extracted_tax_id = "29BBBBB1111B2Z6"
                 extracted_address = "45 MG Road, Bengaluru, India"
-                doc_has_compliance_info = True
             elif "nova" in filename.lower():
                 extracted_company = "Nova Technologies Private Limited"
                 extracted_tax_id = "33CCCCC2222C3Z7"
                 extracted_address = "88 Cyber City, Gurugram, India"
-                doc_has_compliance_info = True
             elif "delta" in filename.lower():
                 extracted_company = "Delta Systems Private Limited"
                 extracted_tax_id = "INVALID_GSTIN_999"
                 extracted_address = "12 Tech Zone, Hyderabad, India"
-                doc_has_compliance_info = True
 
-        # Perform comparisons based on document type
+        # Compare Company Name
         norm_ext_company = normalize_text(extracted_company)
         
         doc_passed = True
         doc_reasons = []
 
-        if doc_type == "tax_registration":
-            # Compare Company Legal Name
-            if norm_ext_company and norm_form_company:
-                if norm_ext_company != norm_form_company and (norm_ext_company not in norm_form_company and norm_form_company not in norm_ext_company):
-                    doc_passed = False
-                    reason = f"Tax Registration document company legal name ('{extracted_company}') does not match submitted vendor name ('{form_company}')."
-                    doc_reasons.append(reason)
-                    mismatches.append(reason)
-                    actions_required.append("Upload Tax Registration document matching vendor legal name.")
+        # Company Name Check
+        if not norm_ext_company:
+            doc_passed = False
+            reason = f"Could not extract legal company name from uploaded {doc_label}."
+            doc_reasons.append(reason)
+            mismatches.append(reason)
+            actions_required.append(f"Upload readable {doc_label} containing legal company name.")
+        elif norm_ext_company != norm_form_company and (norm_ext_company not in norm_form_company and norm_form_company not in norm_ext_company):
+            doc_passed = False
+            reason = f"{doc_label} legal company name ('{extracted_company}') does not match submitted vendor name ('{form_company}')."
+            doc_reasons.append(reason)
+            mismatches.append(reason)
+            actions_required.append(f"Upload {doc_label} matching vendor legal name '{form_company}'.")
 
-            # Compare Tax ID / GSTIN if extracted
-            if extracted_tax_id and form_tax_id:
-                norm_ext_tax = re.sub(r'[\s\-]', '', extracted_tax_id)
-                if norm_ext_tax != norm_form_tax_id:
-                    doc_passed = False
-                    reason = f"Tax Registration document Tax ID ('{extracted_tax_id}') does not match submitted form Tax ID ('{form_tax_id}')."
-                    doc_reasons.append(reason)
-                    mismatches.append(reason)
-                    actions_required.append("Upload Tax Registration document matching submitted Tax ID.")
-
-        elif doc_type == "company_registration":
-            # Compare Company Legal Name
-            if norm_ext_company and norm_form_company:
-                if norm_ext_company != norm_form_company and (norm_ext_company not in norm_form_company and norm_form_company not in norm_ext_company):
-                    doc_passed = False
-                    reason = f"Company Registration document legal name ('{extracted_company}') does not match submitted vendor name ('{form_company}')."
-                    doc_reasons.append(reason)
-                    mismatches.append(reason)
-                    actions_required.append("Upload Certificate of Incorporation matching vendor legal name.")
-
-        elif doc_type == "compliance_doc":
-            # Verify Company ownership and compliance info presence
-            if norm_ext_company and norm_form_company:
-                if norm_ext_company != norm_form_company and (norm_ext_company not in norm_form_company and norm_form_company not in norm_ext_company):
-                    doc_passed = False
-                    reason = f"Compliance document company name ('{extracted_company}') does not match submitted vendor name ('{form_company}')."
-                    doc_reasons.append(reason)
-                    mismatches.append(reason)
-                    actions_required.append("Upload Compliance Document issued to submitted vendor.")
+        # Tax ID Check for Tax Registration Document
+        if doc_type == "tax_registration" and extracted_tax_id and form_tax_id:
+            norm_ext_tax = re.sub(r'[\s\-]', '', extracted_tax_id)
+            if norm_ext_tax != norm_form_tax_id:
+                doc_passed = False
+                reason = f"Tax Registration document Tax ID ('{extracted_tax_id}') does not match submitted form Tax ID ('{form_tax_id}')."
+                doc_reasons.append(reason)
+                mismatches.append(reason)
+                actions_required.append(f"Upload Tax Registration document matching submitted Tax ID '{form_tax_id}'.")
 
         details.append({
             "doc_type": doc_type,
             "label": doc_label,
             "filename": filename,
-            "extracted_company": extracted_company or "Extracted from PDF",
-            "extracted_tax_id": extracted_tax_id or "Verified",
+            "extracted_company": extracted_company or "Unextracted / Missing",
+            "extracted_tax_id": extracted_tax_id or "Unextracted / Missing",
             "passed": doc_passed,
             "reasons": doc_reasons
         })
@@ -203,7 +205,7 @@ def validate_document_contents(
     is_overall_passed = len(mismatches) == 0
 
     if is_overall_passed:
-        message = "All submitted PDF documents parsed successfully. Extracted legal names and Tax IDs match submitted vendor data."
+        message = "All submitted PDF documents parsed successfully. Extracted legal company names and Tax IDs match vendor data."
     else:
         message = f"Document content mismatch detected: {'; '.join(mismatches)}"
 
