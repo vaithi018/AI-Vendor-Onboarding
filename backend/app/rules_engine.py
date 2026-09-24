@@ -98,14 +98,17 @@ def validate_tax_id(tax_id: str, country: str) -> Dict[str, Any]:
                 "rule": "General Tax ID Format Validation"
             }
 
+from app.pdf_parser import validate_document_contents
+
 def run_deterministic_rules(
     vendor_data: Dict[str, str],
-    submitted_doc_types: List[str]
+    submitted_doc_types: List[str],
+    submitted_documents: Optional[List[Dict[str, Any]]] = None
 ) -> Dict[str, Any]:
     """
     Executes core deterministic validation rules with strict priority:
     1. Invalid critical information (Tax ID format invalid) -> REJECTED
-    2. Missing information / missing documents -> PENDING
+    2. Missing information / missing documents / PDF content mismatches -> PENDING
     3. Name mismatch requiring verification -> PENDING
     4. All checks passed -> APPROVED
     """
@@ -150,8 +153,7 @@ def run_deterministic_rules(
             "message": "All mandatory fields are present."
         }
 
-    # --- 2. Required Documents Check ---
-    # Standard required document types: tax_registration, compliance_doc, company_registration
+    # --- 2. Required Documents Presence Check ---
     required_docs = [
         ("tax_registration", "Tax Registration Document"),
         ("compliance_doc", "Compliance Document"),
@@ -184,7 +186,16 @@ def run_deterministic_rules(
             "message": "All required documents are provided."
         }
 
-    # --- 3. Tax ID Format Validation ---
+    # --- 3. PDF Document Content Extraction & Validation ---
+    pdf_content_check_res = validate_document_contents(vendor_data, submitted_documents)
+    if not pdf_content_check_res["passed"]:
+        for mismatch in pdf_content_check_res.get("mismatches", []):
+            reasons.append(mismatch)
+        for act in pdf_content_check_res.get("actions_required", []):
+            if act not in actions:
+                actions.append(act)
+
+    # --- 4. Tax ID Format Validation ---
     tax_id_val = vendor_data.get("tax_id", "")
     country_val = vendor_data.get("country", "")
     tax_check_res = validate_tax_id(tax_id_val, country_val)
@@ -206,14 +217,13 @@ def run_deterministic_rules(
             "message": tax_check_res["message"]
         }
 
-    # --- 4. Company Name vs Bank Account Name Match ---
+    # --- 5. Company Name vs Bank Account Name Match ---
     company_name = vendor_data.get("company_name", "")
     bank_account_name = vendor_data.get("bank_account_name", "")
     
     norm_company = normalize_business_name(company_name)
     norm_bank = normalize_business_name(bank_account_name)
     
-    # Check exact normalized match or subset match
     names_match = False
     if norm_company and norm_bank:
         if norm_company == norm_bank:
@@ -239,22 +249,21 @@ def run_deterministic_rules(
         actions.append("Verify bank account ownership or provide supporting documentation.")
 
     # --- Decision Priority Engine ---
-    # 1. Invalid Tax ID -> REJECTED
-    # 2. Missing fields or missing documents -> PENDING
+    # 1. Invalid Tax ID format -> REJECTED
+    # 2. Missing fields, missing documents, or document content mismatches -> PENDING
     # 3. Name mismatch -> PENDING
     # 4. All checks passed -> APPROVED
     
-    final_decision = "APPROVED"
-    
     if not tax_check_res["valid"]:
         final_decision = "REJECTED"
-    elif missing_fields or missing_docs or not names_match:
+    elif missing_fields or missing_docs or not pdf_content_check_res["passed"] or not names_match:
         final_decision = "PENDING"
     else:
         final_decision = "APPROVED"
         reasons = [
             "All required fields are present",
             "All required documents are provided",
+            "Extracted PDF document legal names and Tax IDs match vendor data",
             "Tax ID format is valid",
             "Company name matches bank account name"
         ]
@@ -268,6 +277,7 @@ def run_deterministic_rules(
         "validation_checks": {
             "required_fields": fields_check_result,
             "document_check": doc_check_result,
+            "pdf_content_check": pdf_content_check_res,
             "tax_id_check": tax_id_check_result,
             "name_match_check": name_match_check_result
         }

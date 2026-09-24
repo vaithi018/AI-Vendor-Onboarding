@@ -53,6 +53,15 @@ export default function DashboardOverview({
       company: "Delta Systems Private Limited",
       description: "Invalid GSTIN format Tax ID provided.",
       presetKey: "invalid_tax"
+    },
+    {
+      id: 5,
+      title: "TEST 5 — Doc Content Mismatch",
+      expected: "PENDING",
+      badgeClass: "badge-pending",
+      company: "Apex Solutions vs ABC Documents",
+      description: "Form company name and Tax ID mismatch uploaded ABC PDF document contents.",
+      presetKey: "doc_mismatch"
     }
   ];
 

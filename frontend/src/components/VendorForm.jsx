@@ -92,6 +92,21 @@ export default function VendorForm({ onSubmitSubmission, initialPreset }) {
         has_compliance_doc: true,
         has_company_registration: true
       });
+    } else if (presetKey === 'doc_mismatch') {
+      setFormData({
+        company_name: 'Apex Solutions Private Limited',
+        vendor_email: 'contact@apexsolutions.com',
+        contact_person: 'Anil Kapoor',
+        country: 'India',
+        tax_id: '27ABCDE1234F1Z5',
+        bank_account_name: 'Apex Solutions Private Limited',
+        bank_account_number: '987654321012',
+        bank_name: 'HDFC Bank',
+        business_address: '55 Park Street, Kolkata, India',
+        has_tax_registration: true, // Attached ABC Technologies documents
+        has_compliance_doc: true,
+        has_company_registration: true
+      });
     }
   };
 
@@ -174,6 +189,9 @@ export default function VendorForm({ onSubmitSubmission, initialPreset }) {
             </button>
             <button type="button" className="btn btn-scenario" onClick={() => loadPreset('invalid_tax')}>
               ❌ TEST 4: Invalid Tax ID (Rejected)
+            </button>
+            <button type="button" className="btn btn-scenario" onClick={() => loadPreset('doc_mismatch')}>
+              ⚠️ TEST 5: Doc Content Mismatch (Pending)
             </button>
           </div>
         </div>

@@ -93,12 +93,33 @@ def seed_initial_demo_runs(db: Session):
                 {"type": "company_registration", "label": "Company Registration Document", "filename": "Certificate_Delta.pdf", "size": 280000}
             ],
             "time_offset_minutes": 110
+        },
+        {
+            "run_id": "RUN-20260924-DEMO05",
+            "vendor_data": {
+                "company_name": "Apex Solutions Private Limited",
+                "vendor_email": "contact@apexsolutions.com",
+                "contact_person": "Anil Kapoor",
+                "country": "India",
+                "tax_id": "27ABCDE1234F1Z5",
+                "bank_account_name": "Apex Solutions Private Limited",
+                "bank_account_number": "987654321012",
+                "bank_name": "HDFC Bank",
+                "business_address": "55 Park Street, Kolkata, India"
+            },
+            "doc_types": ["tax_registration", "compliance_doc", "company_registration"],
+            "docs_info": [
+                {"type": "tax_registration", "label": "Tax Registration Document", "filename": "GST_Certificate_ABC.pdf", "size": 210000},
+                {"type": "compliance_doc", "label": "Compliance Document", "filename": "ISO27001_Compliance_ABC.pdf", "size": 185000},
+                {"type": "company_registration", "label": "Company Registration Document", "filename": "COI_ABC_Tech.pdf", "size": 340000}
+            ],
+            "time_offset_minutes": 140
         }
     ]
 
     for sc in scenarios:
         vdata = sc["vendor_data"]
-        rules_res = run_deterministic_rules(vdata, sc["doc_types"])
+        rules_res = run_deterministic_rules(vdata, sc["doc_types"], sc["docs_info"])
         
         run_time = base_time + datetime.timedelta(minutes=sc["time_offset_minutes"])
         

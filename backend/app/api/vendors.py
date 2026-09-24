@@ -70,6 +70,7 @@ async def onboard_vendor(
                 "type": "tax_registration",
                 "label": "Tax Registration Document",
                 "filename": tax_registration_file.filename,
+                "file_path": str(file_path),
                 "size": file_path.stat().st_size
             })
         elif bool_tax_reg:
@@ -91,6 +92,7 @@ async def onboard_vendor(
                 "type": "compliance_doc",
                 "label": "Compliance Document",
                 "filename": compliance_doc_file.filename,
+                "file_path": str(file_path),
                 "size": file_path.stat().st_size
             })
         elif bool_comp_doc:
@@ -112,6 +114,7 @@ async def onboard_vendor(
                 "type": "company_registration",
                 "label": "Company Registration Document",
                 "filename": company_registration_file.filename,
+                "file_path": str(file_path),
                 "size": file_path.stat().st_size
             })
         elif bool_coi_doc:
@@ -136,7 +139,7 @@ async def onboard_vendor(
         }
 
         # 1. Run deterministic decision engine
-        rule_result = run_deterministic_rules(vendor_data, submitted_doc_types)
+        rule_result = run_deterministic_rules(vendor_data, submitted_doc_types, submitted_documents)
         
         # 2. Run optional AI enrichment
         ai_insights = generate_ai_insights(
