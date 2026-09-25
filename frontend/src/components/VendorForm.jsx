@@ -295,6 +295,7 @@ export default function VendorForm({ onSubmitSubmission, initialPreset }) {
                 onChange={handleInputChange}
                 required
               >
+                <option value="" disabled>Select Country...</option>
                 <option value="India">India (GSTIN Validation)</option>
                 <option value="United States">United States (EIN Validation)</option>
                 <option value="United Kingdom">United Kingdom</option>
