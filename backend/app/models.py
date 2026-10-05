@@ -25,4 +25,4 @@ class VendorRun(Base):
     required_action = Column(Text, nullable=True) # Action item if not approved
     ai_insights = Column(JSON, nullable=True) # AI analysis result if available
     
-    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.timezone.utc), nullable=False)

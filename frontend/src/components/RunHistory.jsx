@@ -22,7 +22,7 @@ export default function RunHistory({
             Audit Run History
           </h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
-            SQLite persisted log of all automated vendor onboarding verification runs.
+            Persisted log of all automated vendor onboarding verification runs.
           </p>
         </div>
 
@@ -72,7 +72,7 @@ export default function RunHistory({
         </div>
       ) : runs.length === 0 ? (
         <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-          No verification runs match your current filters.
+          {searchQuery || decisionFilter ? 'No verification runs match your current filters.' : 'No verification runs yet.'}
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>

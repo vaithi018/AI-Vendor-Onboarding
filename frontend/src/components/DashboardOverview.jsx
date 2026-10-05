@@ -108,7 +108,7 @@ export default function DashboardOverview({
             </div>
           </div>
           <div style={{ fontSize: '2rem', fontWeight: 800 }}>{total}</div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>Persisted in SQLite database</div>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>Persisted in database</div>
         </div>
 
         <div className="glass-card" style={{ padding: '20px', borderLeft: '4px solid var(--status-approved)' }}>
@@ -203,7 +203,7 @@ export default function DashboardOverview({
 
         {runs.length === 0 ? (
           <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
-            No verification runs recorded yet. Start by submitting a vendor!
+            No verification runs yet.
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>

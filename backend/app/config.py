@@ -20,6 +20,15 @@ else:
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 DATABASE_DIR.mkdir(parents=True, exist_ok=True)
 
-DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DATABASE_DIR / 'vendor_onboarding.db'}")
+raw_db_url = os.getenv("DATABASE_URL", "").strip()
+if raw_db_url:
+    # Normalize legacy postgres:// to postgresql:// for SQLAlchemy compatibility
+    if raw_db_url.startswith("postgres://"):
+        DATABASE_URL = raw_db_url.replace("postgres://", "postgresql://", 1)
+    else:
+        DATABASE_URL = raw_db_url
+else:
+    DATABASE_URL = f"sqlite:///{DATABASE_DIR / 'vendor_onboarding.db'}"
+
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")

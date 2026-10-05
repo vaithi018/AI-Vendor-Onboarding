@@ -1,3 +1,4 @@
+import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
@@ -5,6 +6,13 @@ from app.database import get_db
 from app.models import VendorRun
 
 router = APIRouter(prefix="/runs", tags=["Runs History"])
+
+def format_iso_utc(dt: datetime.datetime) -> str:
+    if not dt:
+        return ""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=datetime.timezone.utc).isoformat()
+    return dt.isoformat()
 
 @router.get("")
 @router.get("/")
@@ -40,7 +48,7 @@ def list_runs(
             "decision": r.decision,
             "reasons": r.reasons,
             "required_action": r.required_action,
-            "created_at": r.created_at.isoformat()
+            "created_at": format_iso_utc(r.created_at)
         })
         
     return results
@@ -71,7 +79,7 @@ def get_run_details(run_id: str, db: Session = Depends(get_db)):
         "validation_checks": run.validation_checks,
         "required_action": run.required_action,
         "ai_insights": run.ai_insights,
-        "created_at": run.created_at.isoformat()
+        "created_at": format_iso_utc(run.created_at)
     }
 
 @router.delete("/{run_id}")

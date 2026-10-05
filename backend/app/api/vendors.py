@@ -44,7 +44,7 @@ async def onboard_vendor(
     db: Session = Depends(get_db)
 ):
     try:
-        run_timestamp = datetime.datetime.utcnow()
+        run_timestamp = datetime.datetime.now(datetime.timezone.utc)
         unique_suffix = run_timestamp.strftime("%Y%m%d%H%M%S") + "-" + uuid.uuid4().hex[:4].upper()
         run_id = f"RUN-{unique_suffix}"
         
@@ -190,7 +190,7 @@ async def onboard_vendor(
             "validation_checks": db_run.validation_checks,
             "required_action": db_run.required_action,
             "ai_insights": db_run.ai_insights,
-            "created_at": db_run.created_at.isoformat()
+            "created_at": db_run.created_at.isoformat() if db_run.created_at.tzinfo else db_run.created_at.replace(tzinfo=datetime.timezone.utc).isoformat()
         }
 
     except Exception as e:
