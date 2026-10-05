@@ -74,7 +74,7 @@ export default function DashboardOverview({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
           <div>
             <span className="badge badge-ai" style={{ marginBottom: '10px' }}>
-              <Zap size={14} /> Case Study Demo Application
+              <Zap size={14} /> PRODUCTION WORKFLOW
             </span>
             <h2 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '6px 0 10px 0' }}>
               Automated Vendor Verification Engine
